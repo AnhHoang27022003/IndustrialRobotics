@@ -266,10 +266,40 @@ while (1)
          disp('STATE 0')
          if previous_counter == counter 
              r1.model.animate([Q1,Q2,Q3,Q4,Q5,Q6]);
+             q1 = r1.model.getpos();
+            finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+            finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+            finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
+            finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
+            finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
+            finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
+            drawnow();
+            finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
+            finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
+            finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
+            finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
+            finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
+            drawnow();
+            finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
              counter = counter+1;
          end
          if previous_counter2 == counter2 
-             r1.model.animate(r1.model.ikine(transl(X_Coordinate,Y_Coordinate,Z_Coordinate),'mask',[1,1,1,0,0,0]));
+             r1.model.animate(r1.model.ikine(transl(X_Coordinate,Y_Coordinate,Z_Coordinate),'q0',[0,0,0,0,0,0],'mask',[1,1,1,0,0,0]));
+            q1 = r1.model.getpos();
+            finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+            finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+            finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
+            finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
+            finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
+            finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
+            drawnow();
+            finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
+            finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
+            finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
+            finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
+            finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
+            drawnow();
+            finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
              counter2 = counter2+1;
          end
          if estop_state == 0
@@ -518,7 +548,8 @@ while (1)
                      finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
                      finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
                      finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
-                     drawnow();         
+                     drawnow();    
+                     finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
                      pan2plotpose = r1.model.fkine(q1).T*trotx(-pi)*transl(0,0.25,-0.25);
                      pan2updatedPoints = [pan2plotpose * [pan2Verts,ones(pan2VertexCount,1)]']';
                      pan2Mesh_h.Vertices = pan2updatedPoints(:,1:3);
@@ -585,12 +616,98 @@ while (1)
                          state = 0;
                      end
                      if i == 30
-                         state = 0;
-                         stored_state = 1;
+                         state = 7;
                          stored_i = 0;
                      end
              end
          end
+    end
+
+    %% STATE 7: RMRC
+    if state == 7
+         disp('STATE 7')
+         stored_state = 7;
+         t = 10;             % Total time (s)
+         deltaT = 0.05;      % Control frequency
+         steps = t/deltaT;   % No. of steps for simulation
+         epsilon = 0.1;      % Threshold value for manipulability/Damped Least Squares
+         W = diag([1 1 1 0.1 0.1 0.1]);    % Weighting matrix for the velocity vector
+        
+         % 1.2) Allocate array data
+         m = zeros(steps,1);             % Array for Measure of Manipulability
+         qMatrix = zeros(steps,6);       % Array for joint anglesR
+         qdot = zeros(steps,6);          % Array for joint velocities
+         theta = zeros(3,steps);         % Array for roll-pitch-yaw angles
+         x_rmrc = zeros(3,steps);             % Array for x-y-z trajectory
+        
+         % 1.3) Set up trajectory, initial pose
+         s = lspb(0,1,steps); 
+         for i=1:steps
+             x_rmrc(1,i) = (1-s(i))*-1.15 + s(i)*-1.694; % Points in x
+             x_rmrc(2,i) = (1-s(i))*-0.5 + s(i)*-0.7423; % Points in y
+             x_rmrc(3,i) = (1-s(i))*1.575 + s(i)*1.923; % Points in z
+             theta(1,i) = 0;                 % Roll angle 
+             theta(2,i) = 1;                 % Pitch angle
+             theta(3,i) = 0;                 % Yaw angle
+         end
+         
+         T = [rpy2r(theta(1,1),theta(2,1),theta(3,1)) x_rmrc(:,1);zeros(1,3) 1];          % Create transformation of first point and angle
+         q0 = [pi,0,0,0,0,0];                                                        % Initial guess for joint angles
+         qMatrix(1,:) = r1.model.ikcon(T,q0);
+
+         for i = 1:steps-1
+            T = r1.model.fkine(qMatrix(i,:)).T;                                   % Get forward transformation at current joint state
+            deltaX = x_rmrc(:,i+1) - T(1:3,4);                                         	% Get position error from next waypoint
+            Rd = rpy2r(theta(1,i+1),theta(2,i+1),theta(3,i+1));                     % Get next RPY angles, convert to rotation matrix
+            Ra = T(1:3,1:3);                                                        % Current end-effector rotation matrix
+            Rdot = (1/deltaT)*(Rd - Rd);                                             % Calculate rotation matrix error
+            S = Rdot*Ra';                                                           % Skew symmetric!
+            linear_velocity = (1/deltaT)*deltaX;
+            angular_velocity = [S(3,2);S(1,3);S(2,1)];                               % Check the structure of Skew Symmetric matrix!!
+            xdot = W*[linear_velocity;angular_velocity];                          	% Calculate end-effector velocity to reach next waypoint.
+            J = r1.model.jacob0(qMatrix(i,:));                                    % Get Jacobian at current joint state
+            m(i) = sqrt(det(J*J'));
+            if m(i) < epsilon                                                       % If manipulability is less than given threshold
+                lambda = (1 - m(i)/epsilon)*5E-2;
+            else
+                lambda = 0;
+            end
+            invJ = inv(J'*J + lambda *eye(6))*J';                                   % DLS Inverse
+            qdot(i,:) = (invJ*xdot)';                                                % Solve the RMRC equation
+            for j = 1:6                                                             % Loop through joints 1 to 6
+                if qMatrix(i,j) + deltaT*qdot(i,j) < r1.model.qlim(j,1)                     % If next joint angle is lower than joint limit...
+                    qdot(i,j) = 0; % Stop the motor
+                elseif qMatrix(i,j) + deltaT*qdot(i,j) > r1.model.qlim(j,2)                 % If next joint angle is greater than joint limit ...
+                    qdot(i,j) = 0; % Stop the motor
+                end
+            end
+            qMatrix(i+1,:) = qMatrix(i,:) + deltaT*qdot(i,:);                         	% Update next joint state based on joint velocities
+         end
+         tic
+         plot3(x_rmrc(1,:),x_rmrc(2,:),x_rmrc(3,:),'k.','LineWidth',1)
+         for i = 1:steps
+            r1.model.animate(qMatrix(i,:))
+            q1 = r1.model.getpos();
+            %plot3(r1.model.fkine(q1).t(1),r1.model.fkine(q1).t(2),r1.model.fkine(q1).t(3),'r.')
+            finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+            finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+            finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
+            finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
+            finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
+            finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
+            drawnow();
+            finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
+            finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
+            finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
+            finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
+            finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
+            drawnow();
+            finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
+            drawnow();
+         end
+         state = 0;
+         stored_state = 1;
+         stored_i = 0;
     end
 end
 

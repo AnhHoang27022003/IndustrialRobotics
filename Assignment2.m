@@ -267,20 +267,20 @@ while (1)
          if previous_counter == counter 
              r1.model.animate([Q1,Q2,Q3,Q4,Q5,Q6]);
              q1 = r1.model.getpos();
-            finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
-            finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
-            finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
-            finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
-            finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
-            finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
-            drawnow();
-            finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
-            finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
-            finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
-            finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
-            finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
-            drawnow();
-            finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
+             finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+             finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+             finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
+             finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
+             finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
+             finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
+             drawnow();
+             finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
+             finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
+             finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
+             finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
+             finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
+             drawnow();
+             finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
              counter = counter+1;
          end
          if previous_counter2 == counter2 
@@ -685,29 +685,38 @@ while (1)
          end
          tic
          plot3(x_rmrc(1,:),x_rmrc(2,:),x_rmrc(3,:),'k.','LineWidth',1)
-         for i = 1:steps
-            r1.model.animate(qMatrix(i,:))
-            q1 = r1.model.getpos();
-            %plot3(r1.model.fkine(q1).t(1),r1.model.fkine(q1).t(2),r1.model.fkine(q1).t(3),'r.')
-            finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
-            finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
-            finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
-            finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
-            finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
-            finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
-            drawnow();
-            finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
-            finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
-            finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
-            finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
-            finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
-            drawnow();
-            finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
-            drawnow();
+         for i = (stored_i + 1):steps
+             if state == 7
+                r1.model.animate(qMatrix(i,:))
+                q1 = r1.model.getpos();
+                %plot3(r1.model.fkine(q1).t(1),r1.model.fkine(q1).t(2),r1.model.fkine(q1).t(3),'r.')
+                finger1.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+                finger2.base = r1.model.fkine(q1).T*transl(0,0,0.023)*trotx(pi/2);
+                finger1plotpose = finger1.fkine(-30/30*pi/2.2).T*transl(-0.5,0,0);
+                finger1plotpose = finger1plotpose*transl(-0.03,-0.005,0);
+                finger1updatedPoints = [finger1plotpose * [finger1Verts,ones(finger1VertexCount,1)]']';
+                finger1Mesh_h.Vertices = finger1updatedPoints(:,1:3);
+                drawnow();
+                finger1plotpose = finger1plotpose*transl(0.03,0.005,0);
+                finger2plotpose = finger2.fkine(30/30*pi/2.2).T*transl(0.5,0,0);
+                finger2plotpose = finger2plotpose*transl(0.03,-0.005,0);
+                finger2updatedPoints = [finger2plotpose * [finger2Verts,ones(finger2VertexCount,1)]']';
+                finger2Mesh_h.Vertices = finger2updatedPoints(:,1:3);
+                drawnow();
+                finger2plotpose = finger2plotpose*transl(-0.03,0.005,0);
+                drawnow();
+                stored_i = i;
+                if estop_state == 1
+                     state = 0;
+                end
+                 if i == steps
+                      state = 0;
+                      stored_state = 1;
+                      stored_i = 0;
+                 end
+             end
          end
-         state = 0;
-         stored_state = 1;
-         stored_i = 0;
+
     end
 end
 
